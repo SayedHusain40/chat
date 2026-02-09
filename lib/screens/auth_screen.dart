@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:chat/utils/firebase_error_messages.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -69,7 +70,6 @@ class _AuthScreenState extends State<AuthScreen> {
             .createUserWithEmailAndPassword(email: _email, password: _password);
 
         await userCredential.user!.updateDisplayName(_name);
-        await userCredential.user!.reload();
 
         final user = userCredential.user;
         if (user == null) {
@@ -78,10 +78,22 @@ class _AuthScreenState extends State<AuthScreen> {
 
         final userId = user.uid;
 
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('user_images/profile')
+            .child('$userId.jpg');
+
+        await storageRef.putFile(_selectedImage!);
+        final imageUrl = await storageRef.getDownloadURL();
+        await userCredential.user!.updatePhotoURL(imageUrl);
+        await userCredential.user!.reload();
+        final updatedUser = FirebaseAuth.instance.currentUser;
+
         await FirebaseFirestore.instance.collection('users').doc(userId).set({
           'id': userId,
           'name': _name,
           'email': _email,
+          'image_url': updatedUser!.photoURL,
         });
 
         showMessage('Signup Successfully');
