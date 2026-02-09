@@ -1,16 +1,30 @@
-# chat
+# Flutter Public Chat App
 
-A new Flutter project.
+A simple **public group chat application** built with **Flutter** and **Firebase**. All users chat together in one shared room (no private chats).
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## ✨ Features
 
-A few resources to get you started if this is your first Flutter project:
+* 🔐 Firebase Authentication (Email/Password)
+* 💬 One public chat room (all users see the same messages)
+* 🧑 User avatars stored in Firebase Storage
+* ⚡ Real-time messages with Cloud Firestore
+* 📱 Clean and simple Flutter UI
+---
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 📸 Screenshots
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+<p float="left">
+  <img src="assets/screenshots/sign_in.png" width="250" />
+  <img src="assets/screenshots/login.png" width="250" />
+  <img src="assets/screenshots/chats.png" width="250" />
+</p>
+
+---
+
+## 📌 Notes
+
+* This app is **not private chat** (single shared room)
+
+Made with ❤️ using Flutter & Firebase
