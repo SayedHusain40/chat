@@ -20,11 +20,3 @@ A simple **public group chat application** built with **Flutter** and **Firebase
   <img src="assets/screenshots/login.png" width="250" />
   <img src="assets/screenshots/chats.png" width="250" />
 </p>
-
----
-
-## 📌 Notes
-
-* This app is **not private chat** (single shared room)
-
-Made with ❤️ using Flutter & Firebase
