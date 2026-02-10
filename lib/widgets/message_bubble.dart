@@ -23,8 +23,8 @@ class MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final double avatarRadius = 25;
-    final double avatarWidth = avatarRadius * 2;
+    const double avatarRadius = 25;
+    const double avatarWidth = avatarRadius * 2;
     return Row(
       crossAxisAlignment: .start,
       mainAxisAlignment: isCurrentUser

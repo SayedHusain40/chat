@@ -1,7 +1,10 @@
+import 'package:chat/cubits/auth_cubit.dart';
+import 'package:chat/cubits/auth_state.dart';
 import 'package:chat/widgets/chat_messages_list.dart';
 import 'package:chat/widgets/chat_input.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -29,17 +32,31 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Chat Flutter App'),
-        actions: [IconButton(onPressed: onSignOut, icon: Icon(Icons.logout))],
+        title: const Text('Chat Flutter App'),
+        actions: [
+          IconButton(onPressed: onSignOut, icon: const Icon(Icons.logout)),
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          children: [
-            Expanded(child: ChatMessagesList()),
-            ChatInput(),
-          ],
-        ),
+      body: BlocConsumer<AuthCubit, AuthState>(
+        listener: (context, state) {
+          if (state is AuthError) {
+            showMessage(state.message);
+          }
+        },
+        builder: (context, state) {
+          if (state is AuthLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Column(
+              children: [
+                Expanded(child: ChatMessagesList()),
+                ChatInput(),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

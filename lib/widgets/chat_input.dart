@@ -22,7 +22,9 @@ class _ChatInputState extends State<ChatInput> {
   }
 
   void onSendMessage() async {
-    if (messageController.text.trim().isEmpty) {
+      final firebaseAuth = FirebaseAuth.instance.currentUser;
+
+    if (messageController.text.trim().isEmpty || firebaseAuth == null) {
       return;
     }
 
@@ -31,18 +33,15 @@ class _ChatInputState extends State<ChatInput> {
         _isLoading = true;
       });
 
-      final id = FirebaseAuth.instance.currentUser!.uid;
-
-      final userData = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(id)
-          .get();
+      final id = firebaseAuth.uid;
+      final displayName = firebaseAuth.displayName;
+      final photoURL = firebaseAuth.photoURL;
 
       await FirebaseFirestore.instance.collection('chats').add({
         'id': id,
-        'userName': userData.data()!['name'],
+        'userName': displayName,
         'message': messageController.text.trim(),
-        'image_url': userData.data()!['image_url'],
+        'image_url': photoURL,
         'createdAt': Timestamp.now(),
       });
 
@@ -77,7 +76,7 @@ class _ChatInputState extends State<ChatInput> {
         Expanded(
           child: TextField(
             controller: messageController,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               border: UnderlineInputBorder(),
               label: Text('Message'),
               hint: Text('Send a message...'),
@@ -87,12 +86,12 @@ class _ChatInputState extends State<ChatInput> {
         IconButton(
           onPressed: _isLoading ? null : onSendMessage,
           icon: _isLoading
-              ? SizedBox(
+              ? const SizedBox(
                   width: 25,
                   height: 25,
                   child: CircularProgressIndicator(),
                 )
-              : Icon(Icons.send),
+              : const Icon(Icons.send),
         ),
       ],
     );

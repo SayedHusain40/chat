@@ -1,10 +1,9 @@
 import 'dart:io';
 
-import 'package:chat/utils/firebase_error_messages.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:chat/cubits/auth_cubit.dart';
+import 'package:chat/cubits/auth_state.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -22,7 +21,6 @@ class _AuthScreenState extends State<AuthScreen> {
   late String _name;
   late String _email;
   late String _password;
-  bool _isLoading = false;
 
   void showMessage(String message) {
     ScaffoldMessenger.of(
@@ -51,67 +49,17 @@ class _AuthScreenState extends State<AuthScreen> {
 
     _formKey.currentState!.save();
 
-    setState(() {
-      _isLoading = true;
-    });
+    final authCubit = context.read<AuthCubit>();
 
-    try {
-      final firebaseAuth = FirebaseAuth.instance;
-
-      if (_isLoginModel) {
-        await firebaseAuth.signInWithEmailAndPassword(
-          email: _email,
-          password: _password,
-        );
-
-        showMessage('Login Successfully');
-      } else {
-        final userCredential = await firebaseAuth
-            .createUserWithEmailAndPassword(email: _email, password: _password);
-
-        await userCredential.user!.updateDisplayName(_name);
-
-        final user = userCredential.user;
-        if (user == null) {
-          throw Exception("User is null");
-        }
-
-        final userId = user.uid;
-
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('user_images/profile')
-            .child('$userId.jpg');
-
-        await storageRef.putFile(_selectedImage!);
-        final imageUrl = await storageRef.getDownloadURL();
-        await userCredential.user!.updatePhotoURL(imageUrl);
-        await userCredential.user!.reload();
-        final updatedUser = FirebaseAuth.instance.currentUser;
-
-        await FirebaseFirestore.instance.collection('users').doc(userId).set({
-          'id': userId,
-          'name': _name,
-          'email': _email,
-          'image_url': updatedUser!.photoURL,
-        });
-
-        showMessage('Signup Successfully');
-      }
-    } on FirebaseAuthException catch (e) {
-      showMessage(getFirebaseAuthMessage(e));
-    } on FirebaseException catch (e) {
-      if (e.plugin == 'cloud_firestore') {
-        showMessage(getFirestoreMessage(e));
-      } else {
-        showMessage("Something went wrong.");
-      }
-    } catch (e) {
-      showMessage('Something Went Wrong');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+    if (_isLoginModel) {
+      authCubit.login(email: _email, password: _password);
+    } else {
+      authCubit.signup(
+        name: _name,
+        email: _email,
+        password: _password,
+        image: _selectedImage!,
+      );
     }
   }
 
@@ -119,129 +67,140 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.deepPurple,
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Center(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisAlignment: .center,
-              children: [
-                Image.asset('assets/images/chat.png', width: 250),
-                SizedBox(height: 20),
-                Form(
-                  key: _formKey,
-                  child: Container(
-                    padding: .all(13),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: .circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        if (!_isLoginModel) ...[
-                          Column(
-                            children: [
-                              CircleAvatar(
-                                radius: 35,
-                                backgroundImage: _selectedImage != null
-                                    ? FileImage(_selectedImage!)
-                                    : null,
-                                child: _selectedImage == null
-                                    ? Icon(Icons.person, size: 35)
-                                    : null,
+      body: BlocConsumer<AuthCubit, AuthState>(
+        listener: (context, state) {
+          if (state is AuthError) {
+            showMessage(state.message);
+          }
+        },
+        builder: (context, state) {
+          return Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Center(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: .center,
+                  children: [
+                    Image.asset('assets/images/chat.png', width: 250),
+                    const SizedBox(height: 20),
+                    Form(
+                      key: _formKey,
+                      child: Container(
+                        padding: const .all(13),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: .circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            if (!_isLoginModel) ...[
+                              Column(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 35,
+                                    backgroundImage: _selectedImage != null
+                                        ? FileImage(_selectedImage!)
+                                        : null,
+                                    child: _selectedImage == null
+                                        ? const Icon(Icons.person, size: 35)
+                                        : null,
+                                  ),
+                                  TextButton.icon(
+                                    onPressed: onSelectImage,
+                                    icon: const Icon(Icons.image),
+                                    label: const Text('Add Image'),
+                                  ),
+                                ],
                               ),
-                              TextButton.icon(
-                                onPressed: onSelectImage,
-                                icon: Icon(Icons.image),
-                                label: Text('Add Image'),
+                              TextFormField(
+                                decoration: const InputDecoration(
+                                  border: UnderlineInputBorder(),
+                                  label: Text('Name'),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Name should not be null';
+                                  }
+                                  return null;
+                                },
+                                onSaved: (newValue) {
+                                  _name = newValue!;
+                                },
                               ),
                             ],
-                          ),
-                          TextFormField(
-                            decoration: InputDecoration(
-                              border: UnderlineInputBorder(),
-                              label: Text('Name'),
+                            const SizedBox(height: 10),
+                            TextFormField(
+                              keyboardType: TextInputType.emailAddress,
+                              decoration: const InputDecoration(
+                                border: UnderlineInputBorder(),
+                                label: Text('Email'),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Email should not be null';
+                                }
+                                if (!value.contains('@')) {
+                                  return 'Email must be valid';
+                                }
+                                return null;
+                              },
+                              onSaved: (newValue) {
+                                _email = newValue!;
+                              },
                             ),
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Name should not be null';
-                              }
-                              return null;
-                            },
-                            onSaved: (newValue) {
-                              _name = newValue!;
-                            },
-                          ),
-                        ],
-                        SizedBox(height: 10),
-                        TextFormField(
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: InputDecoration(
-                            border: UnderlineInputBorder(),
-                            label: Text('Email'),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Email should not be null';
-                            }
-                            if (!value.contains('@')) {
-                              return 'Email must be valid';
-                            }
-                            return null;
-                          },
-                          onSaved: (newValue) {
-                            _email = newValue!;
-                          },
+                            TextFormField(
+                              obscureText: true,
+                              decoration: const InputDecoration(
+                                border: UnderlineInputBorder(),
+                                label: Text('Password'),
+                              ),
+                              validator: (value) {
+                                if (value == null ||
+                                    value.trim().isEmpty ||
+                                    value.length < 5) {
+                                  return 'Password should be at least 6 character.';
+                                }
+                                return null;
+                              },
+                              onSaved: (newValue) {
+                                _password = newValue!;
+                              },
+                            ),
+                            const SizedBox(height: 10),
+                            ElevatedButton(
+                              onPressed: state is AuthLoading ? null : onSave,
+                              child: state is AuthLoading?
+                                  ? const SizedBox(
+                                      width: 25,
+                                      height: 25,
+                                      child: CircularProgressIndicator(),
+                                    )
+                                  : Text(_isLoginModel ? 'Login' : 'Signup'),
+                            ),
+                            TextButton(
+                              onPressed: state is AuthLoading
+                                  ? null
+                                  : () {
+                                      setState(() {
+                                        _isLoginModel = !_isLoginModel;
+                                      });
+                                    },
+                              child: Text(
+                                _isLoginModel
+                                    ? 'Create an Account'
+                                    : 'I already have an account',
+                              ),
+                            ),
+                          ],
                         ),
-                        TextFormField(
-                          obscureText: true,
-                          decoration: InputDecoration(
-                            border: UnderlineInputBorder(),
-                            label: Text('Password'),
-                          ),
-                          validator: (value) {
-                            if (value == null ||
-                                value.trim().isEmpty ||
-                                value.length < 5) {
-                              return 'Password should be at least 6 character.';
-                            }
-                            return null;
-                          },
-                          onSaved: (newValue) {
-                            _password = newValue!;
-                          },
-                        ),
-                        SizedBox(height: 10),
-                        ElevatedButton(
-                          onPressed: onSave,
-                          child: _isLoading
-                              ? SizedBox(
-                                  width: 25,
-                                  height: 25,
-                                  child: CircularProgressIndicator(),
-                                )
-                              : Text(_isLoginModel ? 'Login' : 'Signup'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _isLoginModel = !_isLoginModel;
-                            });
-                          },
-                          child: Text(
-                            _isLoginModel
-                                ? 'Create an Account'
-                                : 'I already have an account',
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
